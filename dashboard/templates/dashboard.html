@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Travel Architect - Memory Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#FF3366',
+                        secondary: '#2D3748',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-100 min-h-screen p-8 text-secondary">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="flex justify-between items-center mb-8">
+            <div>
+                <a href="/dashboard" class="text-xs text-gray-400 hover:text-primary mb-1 block">← Back to List</a>
+                <h1
+                    class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
+                    Memory Editor
+                </h1>
+                <p class="text-gray-500 text-sm">Scope: <span id="trip-id-display"
+                        class="font-mono bg-gray-200 px-2 rounded">...</span></p>
+            </div>
+            <div id="status-indicator" class="flex items-center space-x-2 text-xs text-green-600">
+                <span class="relative flex h-3 w-3">
+                    <span
+                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span>Live Sync</span>
+            </div>
+        </header>
+
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Column 1: Inbox (Proposed) -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Inbox (Proposed)</h3>
+                    <span id="count-proposed"
+                        class="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded-full font-bold">0</span>
+                </div>
+                <div id="inbox-container" class="space-y-3 min-h-[100px]">
+                    <!-- Loading... -->
+                </div>
+            </div>
+
+            <!-- Column 2: Memory Bank (Approved) -->
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Memory Bank (Truth)</h3>
+                    <span id="count-approved"
+                        class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full font-bold">0</span>
+                </div>
+
+                <!-- Manual Entry (Direct to Approved) -->
+                <div class="flex gap-2 mb-6">
+                    <input id="new-fact-input" type="text"
+                        class="flex-1 bg-gray-50 border border-transparent focus:bg-white focus:border-primary rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                        placeholder="Add specific fact...">
+                    <button onclick="addFact()"
+                        class="bg-black text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition-colors">Add</button>
+                </div>
+
+                <div id="bank-container" class="space-y-3 min-h-[100px]">
+                    <!-- Loading... -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const trip_id = window.location.pathname.split("/").pop();
+        document.getElementById('trip-id-display').innerText = trip_id;
+
+        async function refreshData() {
+            try {
+                const res = await fetch(`/api/trip/${trip_id}`);
+                const data = await res.json();
+
+                // Separate by source (inbox vs bank) instead of status
+                const proposed = data.filter(f => f.source === 'inbox');
+                const approved = data.filter(f => f.source === 'bank');
+
+                document.getElementById('count-proposed').innerText = proposed.length;
+                document.getElementById('count-approved').innerText = approved.length;
+
+                renderList('inbox-container', proposed, true);
+                renderList('bank-container', approved, false);
+            } catch (e) {
+                console.error("Sync error", e);
+                document.getElementById('status-indicator').classList.remove('text-green-600');
+                document.getElementById('status-indicator').classList.add('text-red-500');
+            }
+        }
+
+        function renderList(containerId, items, isInbox) {
+            const container = document.getElementById(containerId);
+            if (items.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-gray-300 text-sm italic">Empty</div>`;
+                return;
+            }
+
+            container.innerHTML = items.map(fact => {
+                // Parse payload safely
+                let payloadObj = {};
+                try {
+                    payloadObj = fact.payload && fact.payload !== '{}' ? JSON.parse(fact.payload) : null;
+                } catch (e) {
+                    payloadObj = null;
+                }
+
+                return `
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 group hover:bg-white hover:shadow-sm transition-all">
+                    <!-- Content -->
+                    <p class="text-gray-800 text-sm font-medium mb-2">${fact.content || 'No content'}</p>
+                    
+                    <!-- Context Scope Badge -->
+                    <div class="flex gap-2 items-center mb-2">
+                        <span class="text-xs font-mono bg-purple-100 text-purple-700 px-2 py-0.5 rounded">
+                            📍 ${fact.context_scope || 'N/A'}
+                        </span>
+                    </div>
+                    
+                    <!-- Tags -->
+                    ${(fact.tags && fact.tags.length > 0) ? `
+                        <div class="flex gap-1 flex-wrap mb-2">
+                            ${fact.tags.filter(t => t != null && t !== '').map(t => `<span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">🏷️ ${t}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Payload (collapsible) -->
+                    ${payloadObj ? `
+                        <details class="text-xs mb-2" onclick="event.stopPropagation()">
+                            <summary class="cursor-pointer text-gray-500 hover:text-gray-700 font-medium" onclick="event.stopPropagation()">📦 Payload</summary>
+                            <pre class="mt-1 bg-gray-100 p-2 rounded overflow-x-auto text-xs" onclick="event.stopPropagation()">${JSON.stringify(payloadObj, null, 2)}</pre>
+                        </details>
+                    ` : ''}
+                    
+                    <!-- Actions -->
+                    <div class="flex justify-between items-center pt-2 border-t border-gray-200">
+                        <span class="text-xs text-gray-400">${fact.created_at ? new Date(fact.created_at).toLocaleDateString() : ''}</span>
+                        <div class="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
+                            ${isInbox ? `
+                            <button onclick="rejectFact('${fact.id}')" class="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded" title="Reject">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                            <button onclick="approveFact('${fact.id}')" class="text-green-500 hover:text-green-700 p-1 hover:bg-green-50 rounded" title="Approve">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            </button>
+                            ` : `
+                            <button onclick="rejectFact('${fact.id}')" class="text-gray-300 hover:text-red-500 p-1" title="Delete">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        async function approveFact(id) {
+            await fetch(`/api/trip/${trip_id}/approve/${id}`, { method: 'POST' });
+            refreshData();
+        }
+
+        async function rejectFact(id) {
+            await fetch(`/api/trip/${trip_id}/fact/${id}`, { method: 'DELETE' });
+            refreshData();
+        }
+
+        async function addFact() {
+            const input = document.getElementById('new-fact-input');
+            const content = (input.value || '').trim();
+            if (!content) return;
+            input.value = '';
+            try {
+                await fetch(`/api/trip/${trip_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: content })
+                });
+                refreshData();
+            } catch (e) { alert("Failed to add fact"); }
+        }
+
+        // Poll every 2 seconds
+        setInterval(refreshData, 2000);
+        refreshData(); // Initial load
+    </script>
+</body>
+
+</html>

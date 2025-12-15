@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Architect - My Trips</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: '#FF3366',
+                        secondary: '#2D3748',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 min-h-screen p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1
+                class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500 mb-2">
+                My Travel Projects
+            </h1>
+            <p class="text-gray-500">Select a trip to view memory or edit details</p>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for trip in trips %}
+            <a href="/dashboard/{{ trip.trip_id }}"
+                class="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 border border-gray-100">
+                <div class="flex items-start gap-4">
+                    <div class="text-4xl">✈️</div>
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-1">
+                            {{ trip.trip_id.replace('_', ' ').title() }}
+                        </h3>
+                        <p class="text-sm text-gray-500">Click to view and manage memories</p>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+
+            {% if not trips %}
+            <div class="col-span-full text-center py-20 text-gray-400">
+                <p>No trips found yet.</p>
+                <p class="text-sm">Start chatting with the agent to create one!</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="mt-12 text-center text-sm text-gray-400">
+            <a href="/" class="hover:text-primary underline">← Back to Chat Agent</a>
+        </div>
+    </div>
+
+</body>
+
+</html>

@@ -1,0 +1,31 @@
+# Exclude Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Exclude Env vars
+.env
+
+# Exclude Virtual Env
+.venv/
+venv/
+env/
+
+# Exclude IDE settings
+.vscode/
+.idea/
+.DS_Store
+
+# Exclude Data persistence
+data/
+weaviate_data/
+
+# Exclude Chainlit/Streamlit temporary files
+.chainlit/
+.files/
+.streamlit/
+chainlit.md
+
+# Exclude temporary tests/scripts
+test_memory.py
+TEST_SCENARIO.md

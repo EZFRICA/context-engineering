@@ -1,0 +1,21 @@
+langgraph
+langchain
+langchain-openai
+langchain-google-genai
+weaviate-client
+python-dotenv
+pydantic
+tenacity
+streamlit
+streamlit-chat
+
+# Testing
+pytest
+pytest-cov
+pytest-asyncio
+
+# Type checking
+mypy
+types-requests
+gradio
+google-generativeai
