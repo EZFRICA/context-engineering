@@ -1,6 +1,5 @@
 langgraph
 langchain
-langchain-openai
 langchain-google-genai
 weaviate-client
 python-dotenv
@@ -20,4 +19,3 @@ types-requests
 gradio
 google-generativeai
 langchain-community
-duckduckgo-search
