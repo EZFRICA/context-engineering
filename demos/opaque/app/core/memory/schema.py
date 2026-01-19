@@ -30,13 +30,13 @@ def get_weaviate_client():
 
 def init_inbox_schema():
     """
-    Initializes the 'MemoryInbox' collection for proposed facts.
+    Initializes the 'OpaqueInbox' collection for proposed facts.
     """
     client = get_weaviate_client()
     try:
-        if not client.collections.exists("MemoryInbox"):
+        if not client.collections.exists("OpaqueInbox"):
             client.collections.create(
-                name="MemoryInbox",
+                name="OpaqueInbox",
                 properties=[
                     Property(name="content", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
                     Property(name="context_scope", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
@@ -48,21 +48,21 @@ def init_inbox_schema():
                     model_id="gemini-embedding-001",
                 )
             )
-            print("Created collection: MemoryInbox")
+            print("Created collection: OpaqueInbox")
         else:
-            print("Collection MemoryInbox already exists.")
+            print("Collection OpaqueInbox already exists.")
     finally:
         client.close()
 
 def init_bank_schema():
     """
-    Initializes the 'MemoryBank' collection for approved facts.
+    Initializes the 'OpaqueBank' collection for approved facts.
     """
     client = get_weaviate_client()
     try:
-        if not client.collections.exists("MemoryBank"):
+        if not client.collections.exists("OpaqueBank"):
             client.collections.create(
-                name="MemoryBank",
+                name="OpaqueBank",
                 properties=[
                     Property(name="content", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
                     Property(name="context_scope", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
@@ -75,9 +75,9 @@ def init_bank_schema():
                     model_id="gemini-embedding-001",
                 )
             )
-            print("Created collection: MemoryBank")
+            print("Created collection: OpaqueBank")
         else:
-            print("Collection MemoryBank already exists.")
+            print("Collection OpaqueBank already exists.")
     finally:
         client.close()
 

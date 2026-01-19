@@ -4,8 +4,7 @@ import os
 from datetime import datetime
 import asyncio
 
-# Add project root to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 
 from app.core.memory.engine import MemoryEngine
 from agents.agent_graph import create_agent_graph
@@ -13,7 +12,7 @@ from langchain_core.messages import HumanMessage
 
 # Page configuration
 st.set_page_config(
-    page_title="Travel Architect - Streamlit",
+    page_title="Travel Agent - Streamlit",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -36,7 +35,7 @@ agent_app = st.session_state.agent_app
 
 # Sidebar: Chat Interface
 with st.sidebar:
-    st.title("✈️ Travel Architect Chat")
+    st.title("✈️ Travel Agent & Context Management")
     
     # Clear Chat Button
     if st.button("🗑️ Clear Conversation", use_container_width=True):
@@ -105,7 +104,7 @@ with st.sidebar:
         st.rerun()
 
 # Main Area: Memory Dashboard
-st.title("📊 Memory Dashboard")
+st.title("📊 Context Dashboard")
 
 # Display current trip
 if st.session_state.trip_id:

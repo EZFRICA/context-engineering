@@ -32,12 +32,23 @@
                 class="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500 mb-2">
                 My Travel Projects
             </h1>
-            <p class="text-gray-500">Select a trip to view memory or edit details</p>
+            <p class="text-gray-500 mb-6">Select a trip to view memory or edit details</p>
+
+            <!-- System Selector -->
+            <div class="inline-flex bg-white rounded-lg p-1 shadow-sm border border-gray-100">
+                <a href="?system=user_controlled"
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-all {{ 'bg-pink-50 text-pink-600' if system == 'user_controlled' else 'text-gray-500 hover:text-gray-700' }}">User
+                    Controlled</a>
+                <a href="?system=hybrid"
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-all {{ 'bg-purple-50 text-purple-600' if system == 'hybrid' else 'text-gray-500 hover:text-gray-700' }}">Hybrid</a>
+                <a href="?system=opaque"
+                    class="px-4 py-2 rounded-md text-sm font-medium transition-all {{ 'bg-gray-100 text-gray-800' if system == 'opaque' else 'text-gray-500 hover:text-gray-700' }}">Opaque</a>
+            </div>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for trip in trips %}
-            <a href="/dashboard/{{ trip.trip_id }}"
+            <a href="/dashboard/{{ trip.trip_id }}?system={{ system }}"
                 class="block bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-6 border border-gray-100">
                 <div class="flex items-start gap-4">
                     <div class="text-4xl">✈️</div>

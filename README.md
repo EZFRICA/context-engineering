@@ -42,7 +42,7 @@ A real-time memory system for AI agents, featuring a **Streamlit** dashboard for
    Create a `.env` file in the root directory:
    ```bash
    GOOGLE_API_KEY=your_gemini_api_key_here
-   # Optional: OPENAI_API_KEY if you modify the agent
+   # You can modify the agent llm to OpenAI if you want
    ```
 
 ## ▶️ Usage

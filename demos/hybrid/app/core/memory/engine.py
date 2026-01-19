@@ -24,7 +24,7 @@ class MemoryEngine:
         payload: Optional[Dict[str, Any]] = None
     ) -> bool:
         """
-        Directly inserts a memory fact into MemoryBank (manual entries are pre-approved).
+        Directly inserts a memory fact into HybridBank (manual entries are pre-approved).
         
         Args:
             scope_id: Context/trip identifier
@@ -37,7 +37,7 @@ class MemoryEngine:
         """
         client = get_weaviate_client()
         try:
-            collection = client.collections.get("MemoryBank")
+            collection = client.collections.get("HybridBank")
             obj_uuid = generate_uuid5(f"{scope_id}:{content}")
             
             collection.data.insert(
@@ -64,15 +64,15 @@ class MemoryEngine:
     
     def mount_context(self, scope_id: str, query: str = None, limit: int = 5) -> str:
         """
-        Retrieves relevant context for the given scope from MemoryBank (approved facts only).
+        Retrieves relevant context for the given scope from HybridBank (approved facts only).
         Uses Hybrid Search if a query is provided, else fetches recents.
         Returns a formatted string for system prompts.
         """
         client = get_weaviate_client()
         try:
-            collection = client.collections.get("MemoryBank")
+            collection = client.collections.get("HybridBank")
             
-            # Filter by scope only (all facts in MemoryBank are approved)
+            # Filter by scope only (all facts in HybridBank are approved)
             from weaviate.classes.query import Filter
             scope_filter = Filter.by_property("context_scope").equal(scope_id)
             
@@ -134,11 +134,11 @@ class MemoryEngine:
             scope_filter = Filter.by_property("context_scope").equal(scope_id)
             
             # Fetch from Inbox
-            inbox = client.collections.get("MemoryInbox")
+            inbox = client.collections.get("HybridInbox")
             inbox_response = inbox.query.fetch_objects(filters=scope_filter, limit=100)
             
             # Fetch from Bank
-            bank = client.collections.get("MemoryBank")
+            bank = client.collections.get("HybridBank")
             bank_response = bank.query.fetch_objects(filters=scope_filter, limit=100)
             
             results = []
@@ -173,11 +173,11 @@ class MemoryEngine:
             client.close()
 
     def approve_fact(self, fact_id: str):
-        """Moves a fact from MemoryInbox to MemoryBank."""
+        """Moves a fact from HybridInbox to HybridBank."""
         client = get_weaviate_client()
         try:
-            inbox = client.collections.get("MemoryInbox")
-            bank = client.collections.get("MemoryBank")
+            inbox = client.collections.get("HybridInbox")
+            bank = client.collections.get("HybridBank")
             
             # Fetch fact from Inbox
             fact = inbox.query.fetch_object_by_id(fact_id)
@@ -206,19 +206,51 @@ class MemoryEngine:
         finally:
             client.close()
 
+    def update_fact(self, fact_id: str, new_content: str = None, new_tags: List[str] = None):
+        """Updates a fact in either Inbox or Bank."""
+        client = get_weaviate_client()
+        try:
+            # Try to update in Inbox first
+            inbox = client.collections.get("HybridInbox")
+            if inbox.query.fetch_object_by_id(fact_id):
+                props = {}
+                if new_content: props["content"] = new_content
+                if new_tags: props["tags"] = new_tags
+                
+                if props:
+                    inbox.data.update(uuid=fact_id, properties=props)
+                    print(f"[MemoryEngine] Updated fact {fact_id} in Inbox")
+                return
+
+            # If not in Inbox, try Bank
+            bank = client.collections.get("HybridBank")
+            if bank.query.fetch_object_by_id(fact_id):
+                props = {}
+                if new_content: props["content"] = new_content
+                if new_tags: props["tags"] = new_tags
+                
+                if props:
+                    bank.data.update(uuid=fact_id, properties=props)
+                    print(f"[MemoryEngine] Updated fact {fact_id} in Bank")
+                return
+                
+            print(f"[MemoryEngine] Fact {fact_id} not found for update")
+        finally:
+            client.close()
+
     def delete_fact(self, fact_id: str):
         """Deletes a fact from either Inbox or Bank."""
         client = get_weaviate_client()
         try:
             # Try to delete from Inbox first
-            inbox = client.collections.get("MemoryInbox")
+            inbox = client.collections.get("HybridInbox")
             if inbox.query.fetch_object_by_id(fact_id):
                 inbox.data.delete_by_id(fact_id)
                 print(f"[MemoryEngine] Deleted fact {fact_id} from Inbox")
                 return
 
             # If not in Inbox, try Bank
-            bank = client.collections.get("MemoryBank")
+            bank = client.collections.get("HybridBank")
             if bank.query.fetch_object_by_id(fact_id):
                 bank.data.delete_by_id(fact_id)
                 print(f"[MemoryEngine] Deleted fact {fact_id} from Bank")
@@ -231,12 +263,12 @@ class MemoryEngine:
 
     def find_scopes(self, query: str = None, limit: int = 5) -> List[Dict[str, Any]]:
         """
-        Finds relevant memory scopes (trips/topics) from MemoryBank only.
+        Finds relevant memory scopes (trips/topics) from HybridBank only.
         Returns unique scopes with a brief summary of what matched.
         """
         client = get_weaviate_client()
         try:
-            collection = client.collections.get("MemoryBank")
+            collection = client.collections.get("HybridBank")
             from weaviate.classes.query import Filter
             
             if query:

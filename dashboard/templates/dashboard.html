@@ -40,13 +40,33 @@
                 <p class="text-gray-500 text-sm">Scope: <span id="trip-id-display"
                         class="font-mono bg-gray-200 px-2 rounded">...</span></p>
             </div>
-            <div id="status-indicator" class="flex items-center space-x-2 text-xs text-green-600">
-                <span class="relative flex h-3 w-3">
-                    <span
-                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <span>Live Sync</span>
+
+            <div class="flex items-center gap-4">
+                <!-- Search Bar -->
+                <div class="relative">
+                    <input type="text" id="search-input" oninput="handleSearch()"
+                        class="bg-white border border-gray-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-primary w-64 shadow-sm"
+                        placeholder="Search memories...">
+                    <svg class="w-4 h-4 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+
+                <button onclick="openReorganizeModal()"
+                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-full text-xs font-bold transition-all shadow-sm flex items-center gap-1">
+                    ⚡ Reorganize
+                </button>
+
+                <div id="status-indicator" class="flex items-center space-x-2 text-xs text-green-600">
+                    <span class="relative flex h-3 w-3">
+                        <span
+                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="hidden md:inline">Live Sync</span>
+                </div>
             </div>
         </header>
 
@@ -91,29 +111,282 @@
 
     </div>
 
+    <!-- Edit Modal -->
+    <div id="edit-modal"
+        class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm transition-opacity opacity-0"
+        style="transition: opacity 0.2s ease-in-out;">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl transform scale-95 transition-transform duration-200"
+            id="edit-modal-content">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">Edit Memory</h3>
+            <input type="hidden" id="edit-fact-id">
+
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Content</label>
+                <textarea id="edit-content"
+                    class="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                    rows="3"></textarea>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tags (comma
+                    separated)</label>
+                <input type="text" id="edit-tags"
+                    class="w-full border border-gray-200 rounded-lg p-3 text-sm focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all">
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                <button onclick="closeEditModal()"
+                    class="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm font-medium">Cancel</button>
+                <button onclick="saveEdit()"
+                    class="px-4 py-2 bg-primary hover:bg-pink-600 text-white rounded-lg text-sm font-medium transition-colors shadow-lg shadow-pink-500/30">Save
+                    Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reorganize Modal -->
+    <!-- Reorganize Modal -->
+    <div id="reorganize-modal"
+        class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm transition-opacity opacity-0"
+        style="transition: opacity 0.2s ease-in-out;">
+        <div class="bg-white rounded-2xl p-6 w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl transform scale-95 transition-transform duration-200"
+            id="reorganize-modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <div>
+                    <h3 class="text-xl font-bold text-gray-900">Reorganize Collection</h3>
+                    <p class="text-sm text-gray-500">Bulk edit as JSON or <span class="text-purple-600 font-bold">✨ Use
+                            AI</span>.</p>
+                </div>
+                <button onclick="closeReorganizeModal()"
+                    class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+
+            <!-- Magic Bar -->
+            <div class="mb-4 flex gap-2">
+                <input type="text" id="magic-instruction"
+                    placeholder="e.g. 'Remove all steak restaurants' or 'Merge the two Tokyo trips'"
+                    class="flex-1 border border-purple-200 bg-purple-50 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-purple-500 transition-all">
+                <button onclick="runMagicEdit()"
+                    class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm flex items-center gap-2">
+                    <span>✨</span> Agent Refactor
+                </button>
+            </div>
+
+            <div class="flex-1 min-h-0 border border-gray-200 rounded-xl overflow-hidden bg-gray-50 relative">
+                <!-- Loading Overlay for Magic -->
+                <div id="magic-loading"
+                    class="absolute inset-0 bg-white/80 hidden flex justify-center items-center z-10 transition-opacity">
+                    <div class="flex flex-col items-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mb-2"></div>
+                        <p class="text-purple-600 text-xs font-bold animate-pulse">Agent is thinking...</p>
+                    </div>
+                </div>
+                <textarea id="reorganize-content"
+                    class="w-full h-full p-6 font-mono text-xs bg-gray-50 focus:bg-white focus:outline-none resize-none text-gray-700"
+                    spellcheck="false"></textarea>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-6">
+                <button onclick="closeReorganizeModal()"
+                    class="px-5 py-2.5 text-gray-500 hover:text-gray-700 text-sm font-medium">Cancel</button>
+                <button onclick="saveReorganize()"
+                    class="px-5 py-2.5 bg-black hover:bg-gray-800 text-white rounded-xl text-sm font-semibold transition-all shadow-lg hover:shadow-xl">
+                    Sync Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const trip_id = window.location.pathname.split("/").pop();
-        document.getElementById('trip-id-display').innerText = trip_id;
+        // Get system from URL params passed by Jinja or reading URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const system = urlParams.get('system') || 'user_controlled';
+
+        document.getElementById('trip-id-display').innerText = trip_id + " (" + system + ")";
+
+        let allData = []; // Store raw data for filtering
+        let searchQuery = "";
+
+        // Modal Logic
+        const modal = document.getElementById('edit-modal');
+        const modalContent = document.getElementById('edit-modal-content');
+
+        // Reorganize Logic
+        const reorganizeModal = document.getElementById('reorganize-modal');
+        const reorganizeModalContent = document.getElementById('reorganize-modal-content');
+
+        function openReorganizeModal() {
+            // Transform data for editor: only keep essential fields
+            const cleanData = allData.map(item => ({
+                id: item.id,
+                content: item.content,
+                tags: item.tags || []
+            }));
+
+            document.getElementById('reorganize-content').value = JSON.stringify(cleanData, null, 2);
+
+            reorganizeModal.classList.remove('hidden');
+            setTimeout(() => {
+                reorganizeModal.classList.remove('opacity-0');
+                reorganizeModalContent.classList.remove('scale-95');
+                reorganizeModalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeReorganizeModal() {
+            reorganizeModal.classList.add('opacity-0');
+            reorganizeModalContent.classList.remove('scale-100');
+            reorganizeModalContent.classList.add('scale-95');
+            setTimeout(() => {
+                reorganizeModal.classList.add('hidden');
+            }, 200);
+        }
+
+        async function saveReorganize() {
+            try {
+                const raw = document.getElementById('reorganize-content').value;
+                const parsed = JSON.parse(raw);
+
+                // Optimistic UI? No, safest to wait for sync.
+                const btn = document.querySelector('#reorganize-modal button:last-child');
+                const originalText = btn.innerText;
+                btn.innerText = "Syncing...";
+                btn.disabled = true;
+
+                await fetch(`/api/trip/${trip_id}/batch?system=${system}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(parsed)
+                });
+
+                closeReorganizeModal();
+                refreshData();
+
+                btn.innerText = originalText;
+                btn.disabled = false;
+
+            } catch (e) {
+                alert("Invalid JSON or Sync Failed: " + e.message);
+                const btn = document.querySelector('#reorganize-modal button:last-child');
+                btn.innerText = "Sync Changes";
+                btn.disabled = false;
+            }
+        }
+
+        async function runMagicEdit() {
+            const instruction = document.getElementById('magic-instruction').value;
+            if (!instruction) return;
+
+            const raw = document.getElementById('reorganize-content').value;
+            let currentFacts;
+            try {
+                currentFacts = JSON.parse(raw);
+            } catch (e) {
+                alert("Invalid JSON context. Please fix manually first.");
+                return;
+            }
+
+            const loader = document.getElementById('magic-loading');
+            loader.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/trip/${trip_id}/magic_organize?system=${system}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_facts: currentFacts, instruction: instruction })
+                });
+
+                const newFacts = await res.json();
+                document.getElementById('reorganize-content').value = JSON.stringify(newFacts, null, 2);
+                document.getElementById('magic-instruction').value = ''; // Clear
+
+            } catch (e) {
+                alert("Agent Refactor failed: " + e.message);
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function openEditModal(id, content, tags) {
+            document.getElementById('edit-fact-id').value = id;
+            document.getElementById('edit-content').value = content;
+            document.getElementById('edit-tags').value = tags;
+
+            modal.classList.remove('hidden');
+            // Small delay for transition
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeEditModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('edit-fact-id').value;
+            const content = document.getElementById('edit-content').value;
+            const tags = document.getElementById('edit-tags').value;
+
+            try {
+                await fetch(`/api/trip/${trip_id}/fact/${id}?system=${system}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: content, tags: tags })
+                });
+                closeEditModal();
+                refreshData();
+            } catch (e) {
+                alert("Failed to update fact");
+                console.error(e);
+            }
+        }
+
+        // Search Logic
+        function handleSearch() {
+            searchQuery = document.getElementById('search-input').value.toLowerCase();
+            renderAll();
+        }
 
         async function refreshData() {
             try {
-                const res = await fetch(`/api/trip/${trip_id}`);
+                const res = await fetch(`/api/trip/${trip_id}?system=${system}`);
                 const data = await res.json();
-
-                // Separate by source (inbox vs bank) instead of status
-                const proposed = data.filter(f => f.source === 'inbox');
-                const approved = data.filter(f => f.source === 'bank');
-
-                document.getElementById('count-proposed').innerText = proposed.length;
-                document.getElementById('count-approved').innerText = approved.length;
-
-                renderList('inbox-container', proposed, true);
-                renderList('bank-container', approved, false);
+                allData = data; // Store source of truth
+                renderAll();
             } catch (e) {
                 console.error("Sync error", e);
                 document.getElementById('status-indicator').classList.remove('text-green-600');
                 document.getElementById('status-indicator').classList.add('text-red-500');
             }
+        }
+
+        function renderAll() {
+            // filter data
+            const filtered = allData.filter(item => {
+                if (!searchQuery) return true;
+                return (item.content && item.content.toLowerCase().includes(searchQuery)) ||
+                    (item.tags && item.tags.some(t => t.toLowerCase().includes(searchQuery)));
+            });
+
+            const proposed = filtered.filter(f => f.source === 'inbox');
+            const approved = filtered.filter(f => f.source === 'bank');
+
+            // Update counts based on FILTERED data or TOTAL data? 
+            // Better to show total counts usually, but let's show visible counts for clarity
+            document.getElementById('count-proposed').innerText = proposed.length;
+            document.getElementById('count-approved').innerText = approved.length;
+
+            renderList('inbox-container', proposed, true);
+            renderList('bank-container', approved, false);
         }
 
         function renderList(containerId, items, isInbox) {
@@ -132,10 +405,18 @@
                     payloadObj = null;
                 }
 
+                const tagsStr = (fact.tags || []).join(', ');
+
                 return `
-                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 group hover:bg-white hover:shadow-sm transition-all">
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 group hover:bg-white hover:shadow-sm transition-all relative">
+                    <!-- Edit Button (Absolute) -->
+                    <button onclick="openEditModal('${fact.id}', '${fact.content.replace(/'/g, "\\'")}', '${tagsStr}')" 
+                        class="absolute top-2 right-2 p-1.5 text-gray-300 hover:text-primary hover:bg-pink-50 rounded-full transition-colors opacity-0 group-hover:opacity-100" title="Edit">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    </button>
+
                     <!-- Content -->
-                    <p class="text-gray-800 text-sm font-medium mb-2">${fact.content || 'No content'}</p>
+                    <p class="text-gray-800 text-sm font-medium mb-2 pr-8">${fact.content || 'No content'}</p>
                     
                     <!-- Context Scope Badge -->
                     <div class="flex gap-2 items-center mb-2">
@@ -182,12 +463,12 @@
         }
 
         async function approveFact(id) {
-            await fetch(`/api/trip/${trip_id}/approve/${id}`, { method: 'POST' });
+            await fetch(`/api/trip/${trip_id}/approve/${id}?system=${system}`, { method: 'POST' });
             refreshData();
         }
 
         async function rejectFact(id) {
-            await fetch(`/api/trip/${trip_id}/fact/${id}`, { method: 'DELETE' });
+            await fetch(`/api/trip/${trip_id}/fact/${id}?system=${system}`, { method: 'DELETE' });
             refreshData();
         }
 
@@ -197,7 +478,7 @@
             if (!content) return;
             input.value = '';
             try {
-                await fetch(`/api/trip/${trip_id}`, {
+                await fetch(`/api/trip/${trip_id}?system=${system}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content: content })
