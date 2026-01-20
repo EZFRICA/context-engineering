@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import json
 import logging
 from datetime import datetime, timezone
@@ -116,6 +117,7 @@ class MemoryEngine:
         # Note: If running in sync context, this needs loop handling.
         # Assuming called from FastAPI/Async framework.
         try:
+             print(f"[\033[96mDEBUG-ENGINE\033[0m] Spawning background task for {scope_id}", file=sys.stderr)
              asyncio.create_task(background_consolidator(scope_id, user_msg, ai_msg))
              return "ingestion_started"
         except RuntimeError:
@@ -133,9 +135,8 @@ class MemoryEngine:
             from weaviate.classes.query import Filter
             scope_filter = Filter.by_property("context_scope").equal(scope_id)
             
-            # Fetch from Inbox
-            inbox = client.collections.get("OpaqueInbox")
-            inbox_response = inbox.query.fetch_objects(filters=scope_filter, limit=100)
+            # Fetch from Inbox (None for Opaque)
+            inbox_response = [] 
             
             # Fetch from Bank
             bank = client.collections.get("OpaqueBank")
@@ -144,16 +145,8 @@ class MemoryEngine:
             results = []
             
             # Add Inbox facts
-            for obj in inbox_response.objects:
-                props = obj.properties
-                results.append({
-                    "id": str(obj.uuid),
-                    "source": "inbox",
-                    "content": props.get("content"),
-                    "tags": props.get("tags", []),
-                    "payload": props.get("payload", "{}"),
-                    "created_at": props.get("created_at").isoformat() if props.get("created_at") else None
-                })
+            # Add Inbox facts (None for Opaque)
+            # for obj in inbox_response.objects: [...]
             
             # Add Bank facts
             for obj in bank_response.objects:
@@ -173,38 +166,7 @@ class MemoryEngine:
             client.close()
 
     def approve_fact(self, fact_id: str):
-        """Moves a fact from OpaqueInbox to OpaqueBank."""
-        client = get_weaviate_client()
-        try:
-            inbox = client.collections.get("OpaqueInbox")
-            bank = client.collections.get("OpaqueBank")
-            
-            # Fetch fact from Inbox
-            fact = inbox.query.fetch_object_by_id(fact_id)
-            if not fact:
-                print(f"[MemoryEngine] Fact {fact_id} not found in Inbox")
-                return
-            
-            props = fact.properties
-            
-            # Insert into Bank with approved_at timestamp
-            bank.data.insert(
-                properties={
-                    "content": props.get("content"),
-                    "context_scope": props.get("context_scope"),
-                    "tags": props.get("tags", []),
-                    "payload": props.get("payload", "{}"),
-                    "created_at": props.get("created_at"),
-                    "approved_at": datetime.now(timezone.utc)
-                }
-            )
-            
-            # Delete from Inbox
-            inbox.data.delete_by_id(fact_id)
-            
-            print(f"[MemoryEngine] Approved and moved fact: {fact_id}")
-        finally:
-            client.close()
+        pass # No approval in Opaque
 
     def update_fact(self, fact_id: str, new_content: str = None, new_tags: List[str] = None):
         """Updates a fact in either Inbox or Bank."""

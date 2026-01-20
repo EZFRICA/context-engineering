@@ -50,6 +50,11 @@ with st.sidebar:
             
             if result.get("trip_id"): st.session_state.trip_id = result["trip_id"]
             st.session_state.messages.append({"role": "assistant", "content": str(resp)})
+            
+            # --- TRIGGER MEMORY INGESTION ---
+            if st.session_state.trip_id:
+                memory_engine.ingest_interaction(st.session_state.trip_id, prompt, str(resp))
+                
         st.rerun()
 
 # Main Logic
@@ -57,16 +62,7 @@ st.title("⚡ Hybrid Context Management")
 st.markdown("*Use Case: Context is captured automatically, but you retain full editing power.*")
 
 if st.session_state.trip_id:
-    # AUTO-INGEST
-    facts = memory_engine.get_editor_view(st.session_state.trip_id)
-    inbox_facts = [f for f in facts if f['source'] == 'inbox']
-    if inbox_facts:
-        with st.status("⚡ FAST-INGEST: Moving facts to memory...", expanded=True) as s:
-            for f in inbox_facts:
-                memory_engine.approve_fact(f['id'])
-                st.write(f"Ingested: {f['content']}")
-            s.update(label="Ingestion Complete", state="complete", expanded=False)
-        st.rerun()
+    # AUTO-INGEST REMOVED (Handled by Worker -> Bank directly)
 
     # EDITABLE BANK
     facts = memory_engine.get_editor_view(st.session_state.trip_id)

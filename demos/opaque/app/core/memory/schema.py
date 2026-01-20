@@ -28,32 +28,6 @@ def get_weaviate_client():
         skip_init_checks=True
     )
 
-def init_inbox_schema():
-    """
-    Initializes the 'OpaqueInbox' collection for proposed facts.
-    """
-    client = get_weaviate_client()
-    try:
-        if not client.collections.exists("OpaqueInbox"):
-            client.collections.create(
-                name="OpaqueInbox",
-                properties=[
-                    Property(name="content", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
-                    Property(name="context_scope", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
-                    Property(name="tags", data_type=DataType.TEXT_ARRAY),
-                    Property(name="payload", data_type=DataType.TEXT),
-                    Property(name="created_at", data_type=DataType.DATE),
-                ],
-                vectorizer_config=Configure.Vectorizer.text2vec_google_aistudio(
-                    model_id="gemini-embedding-001",
-                )
-            )
-            print("Created collection: OpaqueInbox")
-        else:
-            print("Collection OpaqueInbox already exists.")
-    finally:
-        client.close()
-
 def init_bank_schema():
     """
     Initializes the 'OpaqueBank' collection for approved facts.
@@ -83,11 +57,17 @@ def init_bank_schema():
 
 def init_universal_schema():
     """
-    Initializes all memory collections (Inbox + Bank).
-    Legacy UniversalContext kept for backward compatibility during migration.
+    Initializes OpaqueBank collection.
     """
-    init_inbox_schema()
     init_bank_schema()
+    
+    # Legacy migration code removed/simplified
+    client = get_weaviate_client()
+    try:
+        # Check for legacy removal if needed, but for now just don't create Inbox
+        pass  
+    finally:
+        client.close()
     
     # Keep legacy collection for now (will be migrated)
     client = get_weaviate_client()

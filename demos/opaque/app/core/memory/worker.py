@@ -8,9 +8,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import weaviate
 from weaviate.util import generate_uuid5
-# Relative import issue: using sys path hack for now or direct sibling import if valid, 
-# but for reliable execution from root, we assume package structure.
+# ... imports ...
+import sys
 from app.core.memory.schema import get_weaviate_client
+
+# -- Data Models --
 
 # -- Data Models for Extraction --
 
@@ -29,10 +31,10 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
     Analyzes a conversation turn to extract durable facts.
     Designed to run as a Fire-and-Forget background task.
     """
-    print(f"[\033[94mMemoryWorker\033[0m] Starting consolidation for scope={scope_id}")
-    print(f"[\033[94mMemoryWorker\033[0m] Analyzing Interaction:\n  User: {user_msg}\n  AI: {ai_msg[:50]}...")
+    print(f"[\033[96mDEBUG-WORKER\033[0m] Called for scope: {scope_id}", file=sys.stderr)
+    print(f"[\033[96mDEBUG-WORKER\033[0m] User Msg: {user_msg}", file=sys.stderr)
     
-    # 1. Setup LLM (Fast model)
+    # 1. Setup LLM
     # Using standard models/gemini-flash-lite-latest
     llm = ChatGoogleGenerativeAI(
         model="gemini-flash-lite-latest",
@@ -85,7 +87,7 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
     # 2. Ingest into Weaviate (Deduplication Check)
     client = get_weaviate_client()
     try:
-        collection = client.collections.get("MemoryInbox")
+        collection = client.collections.get("OpaqueBank")
         
         for fact in result.facts:
             # Deterministic UUID to avoid exact duplicates
@@ -98,7 +100,8 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
                     "context_scope": scope_id,
                     "tags": fact.tags,
                     "payload": json.dumps(fact.payload),
-                    "created_at": datetime.now(timezone.utc)
+                    "created_at": datetime.now(timezone.utc),
+                    "approved_at": datetime.now(timezone.utc)
                 }
             )
             print(f"[MemoryWorker] Saved: {fact.content}")

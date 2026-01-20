@@ -78,6 +78,12 @@ with st.sidebar:
                 st.session_state.trip_id = result["trip_id"]
             
             st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # --- TRIGGER MEMORY INGESTION ---
+            if st.session_state.trip_id:
+                print(f"[\033[96mDEBUG-MAIN\033[0m] Triggering ingestion for {st.session_state.trip_id}", file=sys.stderr)
+                memory_engine.ingest_interaction(st.session_state.trip_id, prompt, response)
+                
         st.rerun()
 
 # Main Area: Opaque Dashboard
@@ -86,16 +92,7 @@ st.markdown("*Use Case: User can see what the AI knows, but the AI manages it au
 
 if st.session_state.trip_id:
     # --- AUTO-INGEST LOGIC ---
-    facts = memory_engine.get_editor_view(st.session_state.trip_id)
-    inbox_facts = [f for f in facts if f['source'] == 'inbox']
-    
-    if inbox_facts:
-        with st.status("🔄 Auto-ingesting context...", expanded=True) as status:
-            for f in inbox_facts:
-                st.write(f"Ingesting: {f['content'][:30]}...")
-                memory_engine.approve_fact(f['id'])
-            status.update(label="Context Updated", state="complete", expanded=False)
-        st.rerun()
+    # AUTO-INGEST REMOVED (Handled by Worker -> Bank directly)
 
     # --- DISPLAY BANK ---
     # Re-fetch only bank facts

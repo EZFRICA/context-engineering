@@ -85,7 +85,7 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
     # 2. Ingest into Weaviate (Deduplication Check)
     client = get_weaviate_client()
     try:
-        collection = client.collections.get("MemoryInbox")
+        collection = client.collections.get("UserInbox")
         
         for fact in result.facts:
             # Deterministic UUID to avoid exact duplicates

@@ -133,9 +133,8 @@ class MemoryEngine:
             from weaviate.classes.query import Filter
             scope_filter = Filter.by_property("context_scope").equal(scope_id)
             
-            # Fetch from Inbox
-            inbox = client.collections.get("HybridInbox")
-            inbox_response = inbox.query.fetch_objects(filters=scope_filter, limit=100)
+            # Fetch from Inbox (Hybrid is Optimistic -> All in Bank, but marked as auto-generated)
+            inbox_response = []
             
             # Fetch from Bank
             bank = client.collections.get("HybridBank")
@@ -144,16 +143,8 @@ class MemoryEngine:
             results = []
             
             # Add Inbox facts
-            for obj in inbox_response.objects:
-                props = obj.properties
-                results.append({
-                    "id": str(obj.uuid),
-                    "source": "inbox",
-                    "content": props.get("content"),
-                    "tags": props.get("tags", []),
-                    "payload": props.get("payload", "{}"),
-                    "created_at": props.get("created_at").isoformat() if props.get("created_at") else None
-                })
+            # Add Inbox facts
+            # for obj in inbox_response.objects: [...]
             
             # Add Bank facts
             for obj in bank_response.objects:
@@ -173,54 +164,14 @@ class MemoryEngine:
             client.close()
 
     def approve_fact(self, fact_id: str):
-        """Moves a fact from HybridInbox to HybridBank."""
-        client = get_weaviate_client()
-        try:
-            inbox = client.collections.get("HybridInbox")
-            bank = client.collections.get("HybridBank")
-            
-            # Fetch fact from Inbox
-            fact = inbox.query.fetch_object_by_id(fact_id)
-            if not fact:
-                print(f"[MemoryEngine] Fact {fact_id} not found in Inbox")
-                return
-            
-            props = fact.properties
-            
-            # Insert into Bank with approved_at timestamp
-            bank.data.insert(
-                properties={
-                    "content": props.get("content"),
-                    "context_scope": props.get("context_scope"),
-                    "tags": props.get("tags", []),
-                    "payload": props.get("payload", "{}"),
-                    "created_at": props.get("created_at"),
-                    "approved_at": datetime.now(timezone.utc)
-                }
-            )
-            
-            # Delete from Inbox
-            inbox.data.delete_by_id(fact_id)
-            
-            print(f"[MemoryEngine] Approved and moved fact: {fact_id}")
-        finally:
-            client.close()
+        pass # All facts are already in Bank (Optimistic)
 
     def update_fact(self, fact_id: str, new_content: str = None, new_tags: List[str] = None):
         """Updates a fact in either Inbox or Bank."""
         client = get_weaviate_client()
         try:
-            # Try to update in Inbox first
-            inbox = client.collections.get("HybridInbox")
-            if inbox.query.fetch_object_by_id(fact_id):
-                props = {}
-                if new_content: props["content"] = new_content
-                if new_tags: props["tags"] = new_tags
-                
-                if props:
-                    inbox.data.update(uuid=fact_id, properties=props)
-                    print(f"[MemoryEngine] Updated fact {fact_id} in Inbox")
-                return
+            # Try to update in Inbox first (Removed)
+            # inbox = client.collections.get("HybridInbox") [...]
 
             # If not in Inbox, try Bank
             bank = client.collections.get("HybridBank")
@@ -242,12 +193,8 @@ class MemoryEngine:
         """Deletes a fact from either Inbox or Bank."""
         client = get_weaviate_client()
         try:
-            # Try to delete from Inbox first
-            inbox = client.collections.get("HybridInbox")
-            if inbox.query.fetch_object_by_id(fact_id):
-                inbox.data.delete_by_id(fact_id)
-                print(f"[MemoryEngine] Deleted fact {fact_id} from Inbox")
-                return
+            # Try to delete from Inbox first (Removed)
+            # inbox = client.collections.get("HybridInbox") [...]
 
             # If not in Inbox, try Bank
             bank = client.collections.get("HybridBank")

@@ -28,31 +28,7 @@ def get_weaviate_client():
         skip_init_checks=True
     )
 
-def init_inbox_schema():
-    """
-    Initializes the 'HybridInbox' collection for proposed facts.
-    """
-    client = get_weaviate_client()
-    try:
-        if not client.collections.exists("HybridInbox"):
-            client.collections.create(
-                name="HybridInbox",
-                properties=[
-                    Property(name="content", data_type=DataType.TEXT, tokenization=Tokenization.WORD),
-                    Property(name="context_scope", data_type=DataType.TEXT, tokenization=Tokenization.FIELD),
-                    Property(name="tags", data_type=DataType.TEXT_ARRAY),
-                    Property(name="payload", data_type=DataType.TEXT),
-                    Property(name="created_at", data_type=DataType.DATE),
-                ],
-                vectorizer_config=Configure.Vectorizer.text2vec_google_aistudio(
-                    model_id="gemini-embedding-001",
-                )
-            )
-            print("Created collection: HybridInbox")
-        else:
-            print("Collection HybridInbox already exists.")
-    finally:
-        client.close()
+# init_inbox_schema removed (Not used in Hybrid)
 
 def init_bank_schema():
     """
@@ -69,7 +45,7 @@ def init_bank_schema():
                     Property(name="tags", data_type=DataType.TEXT_ARRAY),
                     Property(name="payload", data_type=DataType.TEXT),
                     Property(name="created_at", data_type=DataType.DATE),
-                    Property(name="approved_at", data_type=DataType.DATE),  # When user approved it
+                    Property(name="approved_at", data_type=DataType.DATE),
                 ],
                 vectorizer_config=Configure.Vectorizer.text2vec_google_aistudio(
                     model_id="gemini-embedding-001",
@@ -83,11 +59,16 @@ def init_bank_schema():
 
 def init_universal_schema():
     """
-    Initializes all memory collections (Inbox + Bank).
-    Legacy UniversalContext kept for backward compatibility during migration.
+    Initializes HybridBank collection.
     """
-    init_inbox_schema()
     init_bank_schema()
+    
+    # Legacy migration code removed/simplified
+    client = get_weaviate_client()
+    try:
+        pass  
+    finally:
+        client.close()
     
     # Keep legacy collection for now (will be migrated)
     client = get_weaviate_client()
