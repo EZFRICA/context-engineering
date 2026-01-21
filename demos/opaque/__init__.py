@@ -1,0 +1,3 @@
+"""
+Opaque demo module.
+"""

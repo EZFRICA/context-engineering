@@ -10,7 +10,7 @@ import weaviate
 from weaviate.util import generate_uuid5
 # ... imports ...
 import sys
-from app.core.memory.schema import get_weaviate_client
+from .schema import get_weaviate_client
 
 # -- Data Models --
 

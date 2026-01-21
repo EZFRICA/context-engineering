@@ -1,0 +1,3 @@
+"""
+User-controlled demo module.
+"""

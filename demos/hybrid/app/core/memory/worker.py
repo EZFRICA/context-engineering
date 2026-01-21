@@ -8,9 +8,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import weaviate
 from weaviate.util import generate_uuid5
-# Relative import issue: using sys path hack for now or direct sibling import if valid, 
-# but for reliable execution from root, we assume package structure.
-from app.core.memory.schema import get_weaviate_client
+from .schema import get_weaviate_client
 
 # -- Data Models for Extraction --
 

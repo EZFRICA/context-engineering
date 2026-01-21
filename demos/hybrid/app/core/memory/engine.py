@@ -6,8 +6,8 @@ from typing import List, Dict, Any, Optional
 import weaviate.exceptions
 from weaviate.classes.query import MetadataQuery
 from weaviate.util import generate_uuid5
-from app.core.memory.schema import get_weaviate_client, init_universal_schema
-from app.core.memory.worker import background_consolidator
+from .schema import get_weaviate_client, init_universal_schema
+from .worker import background_consolidator
 
 logger = logging.getLogger(__name__)
 

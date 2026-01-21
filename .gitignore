@@ -28,11 +28,5 @@ weaviate_data/
 .streamlit/
 
 # Exclude temporary tests/scripts
-test_memory.py
-TEST_SCENARIO.md
-tests/
-extracted_text/
-pyproject.toml
 stop.sh
 uv.lock
-README.md

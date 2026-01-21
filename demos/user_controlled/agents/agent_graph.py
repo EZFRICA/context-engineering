@@ -59,11 +59,11 @@ def load_memory(scope_id: str):
     return f"Context switched to: {scope_id}"
 
 @tool
-def create_memory(location: str, year: str = "2025"):
+def create_memory(location: str, year: str = "2026"):
     """
     INITIALIZES a new memory scope (Trip ID) for a destination.
     Use this tool IMMEDIATELY when the user agrees to start planning a new trip.
-    Generates a unique ID (e.g., 'Tokyo_2025') and creates the initial context.
+    Generates a unique ID (e.g., 'Tokyo_2026') and creates the initial context.
     """
     from app.core.memory.engine import MemoryEngine
     try:

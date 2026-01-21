@@ -82,7 +82,7 @@ if st.session_state.trip_id:
                     if st.button("💾 Save", key=f"save_{fact['id']}"):
                         tags_list = [t.strip() for t in new_tags.split(",") if t.strip()]
                         memory_engine.update_fact(fact['id'], new_content, tags_list)
-                        st.Success("Updated!")
+                        st.success("Updated!")
                         st.rerun()
                 with col2:
                     if st.button("🗑️ Delete", key=f"del_{fact['id']}"):
