@@ -27,8 +27,12 @@ if "trip_id" not in st.session_state:
     st.session_state.trip_id = None
 if "memory_engine" not in st.session_state:
     st.session_state.memory_engine = MemoryEngine()
-if "agent_app" not in st.session_state:
     st.session_state.agent_app = create_agent_graph()
+
+if "system_logs" not in st.session_state:
+    st.session_state.system_logs = ["System Initialized. Waiting for input..."]
+if "last_latency" not in st.session_state:
+    st.session_state.last_latency = 0.0
 
 memory_engine = st.session_state.memory_engine
 agent_app = st.session_state.agent_app
@@ -42,6 +46,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.langchain_history = []
         st.session_state.trip_id = None
+        st.session_state.system_logs = ["System Reset. Memory decoupled."]
         st.rerun()
     
     # Display chat messages in sidebar
@@ -56,17 +61,28 @@ with st.sidebar:
         # Add user message to UI
         st.session_state.messages.append({"role": "user", "content": prompt})
         
+        # Simulating System Internal Monologue
+        st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] RECEIVED_INPUT: Processing {len(prompt)} chars")
+        st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] IDENTITY_CHECK: User authenticated (Subject 01)")
+        
         # Add to LangChain history
         st.session_state.langchain_history.append(HumanMessage(content=prompt))
         
         # Get agent response
         with st.spinner("Thinking..."):
+            start_time = datetime.now()
             inputs = {
                 "messages": st.session_state.langchain_history,
                 "trip_id": st.session_state.trip_id
             }
             
+            st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] MEMORY_SCAN: Scanning Vector Space...")
             result = asyncio.run(agent_app.ainvoke(inputs))
+            
+            end_time = datetime.now()
+            latency = (end_time - start_time).total_seconds()
+            st.session_state.last_latency = latency
+            st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] INFERENCE_COMPLETE: {latency:.2f}s")
             
             # Update history with full chain
             if "messages" in result:
@@ -92,6 +108,7 @@ with st.sidebar:
             # Check for trip_id change
             if result.get("trip_id") and result["trip_id"] != st.session_state.trip_id:
                 st.session_state.trip_id = result["trip_id"]
+                st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] CONTEXT_SHIFT: New Scope Detected -> {result['trip_id']}")
                 st.toast(f"Switched to trip: {result['trip_id']}")
             
             # Add to UI history
@@ -99,12 +116,22 @@ with st.sidebar:
             
             # Ingest interaction only if we have meaningful text
             if st.session_state.trip_id and response and len(response) > 5:
+                st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] BACKGROUND_WORKER: Spawned extraction task")
                 memory_engine.ingest_interaction(st.session_state.trip_id, prompt, response)
         
         st.rerun()
 
+    if "last_latency" in st.session_state:
+        st.divider()
+        st.metric("⏱️ Last Latency", f"{st.session_state.last_latency:.2f}s")
+
 # Main Area: Memory Dashboard
 st.title("📊 Context Dashboard")
+# System Nucleus (Dramatization)
+with st.expander("🖥️ System Nucleus (Transparent Logs)", expanded=True):
+    st.caption("Real-time trace of autonomous decision making. Read-Only.")
+    log_text = "\n".join(st.session_state.system_logs[-10:])
+    st.code(log_text, language="bash")
 
 # Display current trip
 if st.session_state.trip_id:

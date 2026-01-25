@@ -70,6 +70,7 @@ def init_bank_schema():
                     Property(name="payload", data_type=DataType.TEXT),
                     Property(name="created_at", data_type=DataType.DATE),
                     Property(name="approved_at", data_type=DataType.DATE),  # When user approved it
+                    Property(name="last_accessed", data_type=DataType.DATE),
                 ],
                 vectorizer_config=Configure.Vectorizer.text2vec_google_aistudio(
                     model_id="gemini-embedding-001",

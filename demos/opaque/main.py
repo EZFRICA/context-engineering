@@ -21,6 +21,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# ... (after imports)
+
 # Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -32,6 +34,8 @@ if "memory_engine" not in st.session_state:
     st.session_state.memory_engine = MemoryEngine()
 if "agent_app" not in st.session_state:
     st.session_state.agent_app = create_agent_graph()
+if "system_logs" not in st.session_state:
+    st.session_state.system_logs = ["System Initialized. Waiting for input..."]
 
 memory_engine = st.session_state.memory_engine
 agent_app = st.session_state.agent_app
@@ -44,6 +48,7 @@ with st.sidebar:
         st.session_state.messages = []
         st.session_state.langchain_history = []
         st.session_state.trip_id = None
+        st.session_state.system_logs = ["System Reset. Memory decoupled."]
         st.rerun()
     
     chat_container = st.container(height=500)
@@ -56,9 +61,21 @@ with st.sidebar:
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.session_state.langchain_history.append(HumanMessage(content=prompt))
         
+        # Simulating System Internal Monologue
+        st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] RECEIVED_INPUT: Processing {len(prompt)} chars")
+        st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] IDENTITY_CHECK: User authenticated (Subject 01)")
+        
         with st.spinner("Processing..."):
+            start_time = datetime.now()
             inputs = {"messages": st.session_state.langchain_history, "trip_id": st.session_state.trip_id}
+            
+            st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] MEMORY_SCAN: Scanning Vector Space...")
             result = asyncio.run(agent_app.ainvoke(inputs))
+            
+            end_time = datetime.now()
+            latency = (end_time - start_time).total_seconds()
+            st.session_state.last_latency = latency
+            st.session_state.system_logs.append(f"[{end_time.strftime('%H:%M:%S')}] INFERENCE_COMPLETE: {latency:.2f}s")
             
             if "messages" in result:
                 st.session_state.langchain_history = result["messages"]
@@ -76,19 +93,31 @@ with st.sidebar:
             
             if result.get("trip_id") and result["trip_id"] != st.session_state.trip_id:
                 st.session_state.trip_id = result["trip_id"]
+                st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] CONTEXT_SHIFT: New Scope Detected -> {result['trip_id']}")
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             
             # --- TRIGGER MEMORY INGESTION ---
             if st.session_state.trip_id:
+                st.session_state.system_logs.append(f"[{datetime.now().strftime('%H:%M:%S')}] BACKGROUND_WORKER: Spawned extraction task")
                 print(f"[\033[96mDEBUG-MAIN\033[0m] Triggering ingestion for {st.session_state.trip_id}", file=sys.stderr)
                 memory_engine.ingest_interaction(st.session_state.trip_id, prompt, response)
                 
         st.rerun()
 
+    if "last_latency" in st.session_state:
+        st.divider()
+        st.metric("⏱️ Last Latency", f"{st.session_state.last_latency:.2f}s")
+
 # Main Area: Opaque Dashboard
 st.title("👁️ Opaque Context View")
 st.markdown("*Use Case: User can see what the AI knows, but the AI manages it autonomously.*")
+
+# System Nucleus (Dramatization)
+with st.expander("🖥️ System Nucleus (Black Box logs)", expanded=True):
+    st.caption("Real-time trace of autonomous decision making. Read-Only.")
+    log_text = "\n".join(st.session_state.system_logs[-10:]) # Show last 10 logs
+    st.code(log_text, language="bash")
 
 if st.session_state.trip_id:
     # --- AUTO-INGEST LOGIC ---

@@ -8,9 +8,14 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import weaviate
 from weaviate.util import generate_uuid5
+from weaviate.classes.query import Filter
 # ... imports ...
 import sys
 from .schema import get_weaviate_client
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 # -- Data Models --
 
@@ -31,8 +36,8 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
     Analyzes a conversation turn to extract durable facts.
     Designed to run as a Fire-and-Forget background task.
     """
-    print(f"[\033[96mDEBUG-WORKER\033[0m] Called for scope: {scope_id}", file=sys.stderr)
-    print(f"[\033[96mDEBUG-WORKER\033[0m] User Msg: {user_msg}", file=sys.stderr)
+    logger.info(f"Starting consolidation for scope: {scope_id}")
+    logger.debug(f"User Msg: {user_msg}")
     
     # 1. Setup LLM
     # Using standard models/gemini-flash-lite-latest
@@ -73,16 +78,14 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
             HumanMessage(content=interaction_text)
         ])
     except Exception as e:
-        print(f"[\033[91mMemoryWorker\033[0m] Extraction Failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Extraction Failed: {e}", exc_info=True)
         return
 
     if not result.facts:
-        print("[\033[93mMemoryWorker\033[0m] No facts extracted from this turn.")
+        logger.info("No facts extracted from this turn.")
         return
 
-    print(f"[\033[92mMemoryWorker\033[0m] Extracted {len(result.facts)} facts: {[f.content for f in result.facts]}")
+    logger.info(f"Extracted {len(result.facts)} facts: {[f.content for f in result.facts]}")
 
     # 2. Ingest into Weaviate (Deduplication Check)
     client = get_weaviate_client()
@@ -90,23 +93,42 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
         collection = client.collections.get("OpaqueBank")
         
         for fact in result.facts:
-            # Deterministic UUID to avoid exact duplicates
-            obj_uuid = generate_uuid5(f"{scope_id}:{fact.content}")
-            
-            collection.data.insert(
-                uuid=obj_uuid,
-                properties={
-                    "content": fact.content,
-                    "context_scope": scope_id,
-                    "tags": fact.tags,
-                    "payload": json.dumps(fact.payload),
-                    "created_at": datetime.now(timezone.utc),
-                    "approved_at": datetime.now(timezone.utc)
-                }
+            # 1. Semantic Check
+            # Check if a semantically similar fact already exists in this scope
+            existing = collection.query.near_text(
+                query=fact.content,
+                filters=Filter.by_property("context_scope").equal(scope_id),
+                limit=1,
+                return_metadata=["distance"]
             )
-            print(f"[MemoryWorker] Saved: {fact.content}")
+            
+            is_duplicate = False
+            if existing.objects:
+                most_similar = existing.objects[0]
+                # Distance < 0.15 implies high similarity
+                if most_similar.metadata.distance < 0.15:
+                    logger.info(f"Semantic Duplicate found: '{most_similar.properties['content']}' (dist: {most_similar.metadata.distance:.4f}). Skipping.")
+                    is_duplicate = True
+            
+            if not is_duplicate:
+                # Deterministic UUID to avoid exact duplicates
+                obj_uuid = generate_uuid5(f"{scope_id}:{fact.content}")
+                
+                collection.data.insert(
+                    uuid=obj_uuid,
+                    properties={
+                        "content": fact.content,
+                        "context_scope": scope_id,
+                        "tags": fact.tags,
+                        "payload": json.dumps(fact.payload),
+                        "created_at": datetime.now(timezone.utc),
+                        "approved_at": datetime.now(timezone.utc),
+                        "last_accessed": datetime.now(timezone.utc)
+                    }
+                )
+                logger.info(f"Saved: {fact.content}")
             
     except Exception as e:
-        print(f"[MemoryWorker] DB Error: {e}")
+        logger.error(f"DB Error: {e}")
     finally:
         client.close()

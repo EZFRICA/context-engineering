@@ -49,7 +49,8 @@ class MemoryEngine:
                     "tags": tags or ["manual"],
                     "payload": json.dumps(payload or {}),
                     "created_at": datetime.now(timezone.utc),
-                    "approved_at": datetime.now(timezone.utc)  # Manual = auto-approved
+                    "approved_at": datetime.now(timezone.utc),  # Manual = auto-approved
+                    "last_accessed": datetime.now(timezone.utc)
                 }
             )
             logger.info(f"Manually saved fact to {scope_id}: {content[:50]}...")
@@ -98,6 +99,15 @@ class MemoryEngine:
             
             context_lines = [f"Memory Context (Scope: {scope_id}):"]
             for obj in response.objects:
+                # Update Access Time (Memory Decay prevention)
+                try:
+                    collection.data.update(
+                        uuid=obj.uuid,
+                        properties={"last_accessed": datetime.now(timezone.utc)}
+                    )
+                except:
+                    pass # Non-blocking update
+                
                 props = obj.properties
                 tags = props.get("tags", [])
                 tag_str = f" [{', '.join(tags)}]" if tags else ""

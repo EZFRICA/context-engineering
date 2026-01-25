@@ -8,6 +8,11 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import weaviate
 from weaviate.util import generate_uuid5
+import logging
+from weaviate.classes.query import Filter
+
+logger = logging.getLogger(__name__)
+
 from .schema import get_weaviate_client
 
 # -- Data Models for Extraction --
@@ -27,11 +32,10 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
     Analyzes a conversation turn to extract durable facts.
     Designed to run as a Fire-and-Forget background task.
     """
-    print(f"[\033[94mMemoryWorker\033[0m] Starting consolidation for scope={scope_id}")
-    print(f"[\033[94mMemoryWorker\033[0m] Analyzing Interaction:\n  User: {user_msg}\n  AI: {ai_msg[:50]}...")
+    logger.info(f"Starting consolidation for scope: {scope_id}")
+    logger.debug(f"User Msg: {user_msg}")
     
     # 1. Setup LLM (Fast model)
-    # Using standard models/gemini-flash-lite-latest
     llm = ChatGoogleGenerativeAI(
         model="gemini-flash-lite-latest",
         temperature=1,
@@ -69,27 +73,55 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
             HumanMessage(content=interaction_text)
         ])
     except Exception as e:
-        print(f"[\033[91mMemoryWorker\033[0m] Extraction Failed: {e}")
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Extraction Failed: {e}", exc_info=True)
         return
 
     if not result.facts:
-        print("[\033[93mMemoryWorker\033[0m] No facts extracted from this turn.")
+        logger.info("No facts extracted from this turn.")
         return
 
-    print(f"[\033[92mMemoryWorker\033[0m] Extracted {len(result.facts)} facts: {[f.content for f in result.facts]}")
+    logger.info(f"Extracted {len(result.facts)} facts: {[f.content for f in result.facts]}")
 
     # 2. Ingest into Weaviate (Deduplication Check)
     client = get_weaviate_client()
     try:
-        collection = client.collections.get("UserInbox")
+        inbox = client.collections.get("UserInbox")
+        bank = client.collections.get("UserBank")
         
         for fact in result.facts:
+            # 1. Semantic Check (Against Bank - Do we already know this?)
+            # Distance < 0.15 implies high similarity
+            existing_bank = bank.query.near_text(
+                query=fact.content,
+                filters=Filter.by_property("context_scope").equal(scope_id),
+                limit=1,
+                return_metadata=["distance"]
+            )
+            
+            if existing_bank.objects:
+                most_similar = existing_bank.objects[0]
+                if most_similar.metadata.distance < 0.15:
+                    logger.info(f"Semantic Duplicate found in BANK: '{most_similar.properties['content']}' (dist: {most_similar.metadata.distance:.4f}). Skipping proposal.")
+                    continue
+
+            # 2. Semantic Check (Against Inbox - Is it already pending?)
+            existing_inbox = inbox.query.near_text(
+                query=fact.content,
+                filters=Filter.by_property("context_scope").equal(scope_id),
+                limit=1,
+                return_metadata=["distance"]
+            )
+            
+            if existing_inbox.objects:
+                most_similar = existing_inbox.objects[0]
+                if most_similar.metadata.distance < 0.15:
+                    logger.info(f"Semantic Duplicate found in INBOX: '{most_similar.properties['content']}' (dist: {most_similar.metadata.distance:.4f}). Skipping proposal.")
+                    continue
+
             # Deterministic UUID to avoid exact duplicates
             obj_uuid = generate_uuid5(f"{scope_id}:{fact.content}")
             
-            collection.data.insert(
+            inbox.data.insert(
                 uuid=obj_uuid,
                 properties={
                     "content": fact.content,
@@ -99,9 +131,9 @@ async def background_consolidator(scope_id: str, user_msg: str, ai_msg: str):
                     "created_at": datetime.now(timezone.utc)
                 }
             )
-            print(f"[MemoryWorker] Saved: {fact.content}")
+            logger.info(f"Proposed: {fact.content}")
             
     except Exception as e:
-        print(f"[MemoryWorker] DB Error: {e}")
+        logger.error(f"DB Error: {e}")
     finally:
         client.close()
