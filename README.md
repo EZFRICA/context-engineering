@@ -118,4 +118,30 @@ graph TD
 
 ---
 
+## 💡 Key Findings: The Illusion of Autonomous Memory
+
+Our extensive testing with the **"Vegan Wedding" Scenario** (a stress test involving conflicting constraints: *Steakhouse Enthusiast* vs *Strictly Vegan Event*) revealed critical limitations in modern agentic architectures.
+
+### 1. The Failure of "Smart" Ingestion (Context Poisoning)
+In the **Opaque** architecture, the agent attempted to reconcile the conflict by merging them. It stored:
+> *"User loves traditional French steakhouses."*
+> *"User wants a vegan wedding."*
+
+**Result**: Context Poisoning. The general preference ("Loves Steakhouses") became a permanent "Zombie Memory." In future sessions unrelated to the wedding (e.g., "Planning a business lunch"), the agent continued to suggest steakhouses, having failed to understand that the initial preference was purely situational.
+
+### 2. The Limits of Agent Autonomy
+In the **Hybrid** experiments, we gave the Agent explicit tools (`delete_memory`) and strict "System Override" prompts to heal its own memory.
+*   **The Behavior**: Instead of surgically removing the incorrect fact, the Agent often **hallucinated the correction**. It would reply *"Okay, I've removed your preference for meat,"* while seemingly just adding a *new* memory note: *"User clarified they only wanted the vibe, not the meat."*
+*   **The Problem**: The vector database became cluttered with contradictory layers of "corrections," increasing token usage and confusion over time. The Agent prioritized conversational politeness over database hygiene.
+
+### 3. The UX Imperative
+This study concludes that **Long-Term Memory cannot be purely algorithmic.**
+
+*   **Trust requires Visibility**: Users generally do not trust an agent that says "I forgot," unless they can *see* the data disappear.
+*   **The Dashboard is the Garbage Collector**: Since LLMs are probabilistic, they cannot be trusted with definitive data deletion. A **User-Controlled Interface** (Inbox or Scope Dashboard) is not just a feature—it is a strict requirement for preventing long-term model degradation.
+
+> **Final Thesis**: The solution to AI Hallucinations in RAG systems is not a better vector database, but a better **Frontend for Memory Management**.
+
+---
+
 **Author**: Ezekias Bokovo for Context Engineering Study.
